@@ -132,7 +132,14 @@ Non_Void_Type_Specifier:    INT
 
 
 Compound_Statement:   '{' '}'
-                  |   '{' Block_Item_List '}'
+                  |   '{'
+                      {
+                          cur_scope++;
+                      }
+                      Block_Item_List '}'
+                      {
+                          cur_scope--;
+                      }
                   ;
 
 Block_Item_List:    Block_Item
