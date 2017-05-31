@@ -25,7 +25,7 @@ char *copys();
   init_symbol_table();
 
 */
-init_symbol_table()
+void init_symbol_table()
 {
 
   bzero(&table[0], sizeof(struct symbol_entry)*MAX_TABLE_SIZE);
@@ -99,7 +99,7 @@ int scope;
    Set up parameter scope and offset
 
 */
-set_scope_and_offset_of_param(s)
+void set_scope_and_offset_of_param(s)
 char *s;
 {
 
@@ -128,7 +128,7 @@ char *s;
    Set up local var offset
 
 */
-set_local_vars(functor)
+void set_local_vars(functor)
 char *functor;
 {
 
@@ -157,7 +157,7 @@ char *functor;
 
 */
 
-set_global_vars(s)
+void set_global_vars(s)
 char *s;
 {
   int index;
@@ -173,7 +173,7 @@ To generate house-keeping work at the beginning of the function
 
 */
 
-code_gen_func_header(functor)
+void code_gen_func_header(functor)
 char *functor;
 {
 
@@ -191,7 +191,7 @@ char *functor;
   To generate global symbol vars
 
 */
-code_gen_global_vars()
+void code_gen_global_vars()
 {
   // int i;
  //
@@ -215,7 +215,7 @@ code_gen_global_vars()
 
 */
 
-code_gen_at_end_of_function_body(functor)
+void code_gen_at_end_of_function_body(functor)
 char *functor;
 {
   // int i;
@@ -281,5 +281,5 @@ void printTable()
     int i;
     puts("\n-------------------------------------");
     for(i=0 ; i<cur_counter ; i++)
-        printf("%s    scope:%d     offset:%d\n",table[i].name, table[i].scope, table[i].offset);
+        printf("% -10s    scope:% -5d     offset:% -5d\n",table[i].name, table[i].scope, table[i].offset);
 }

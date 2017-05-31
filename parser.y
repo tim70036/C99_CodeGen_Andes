@@ -47,29 +47,13 @@ External_Declaration:   Function_Definition { FunctionNum++; }
                     |   Declaration
                     ;
 
-Function_Definition:    Non_Void_Type_Specifier ID
-                        {
-                            install_symbol($2);
-                        }
-                        '(' ')' Compound_Statement
+Function_Definition:    Function_Declarator  Compound_Statement
+                   ;
 
-                   |    Non_Void_Type_Specifier ID
-                        {
-                            install_symbol($2);
-                        }
-                        '(' Parameter_List ')' Compound_Statement
-
-                   |    VOID ID
-                        {
-                            install_symbol($2);
-                        }
-                        '(' ')' Compound_Statement
-
-                   |    VOID ID
-                        {
-                            install_symbol($2);
-                        }
-                        '(' Parameter_List ')' Compound_Statement
+Function_Declarator:    Non_Void_Type_Specifier ID '(' ')'                   { install_symbol($2); }
+                   |    Non_Void_Type_Specifier ID '(' Parameter_List ')'    { install_symbol($2); }
+                   |    VOID ID '(' ')'                                      { install_symbol($2); }
+                   |    VOID ID '(' Parameter_List ')'                       { install_symbol($2); }
                    ;
 
 Declaration:    Function_Declaration
@@ -77,22 +61,7 @@ Declaration:    Function_Declaration
            |    Normal_Declaration
            ;
 
-Function_Declaration:    Non_Void_Type_Specifier ID '(' ')' ';'
-                         {
-                             install_symbol($2);
-                         }
-                    |    Non_Void_Type_Specifier ID '(' Parameter_List ')' ';'
-                         {
-                             install_symbol($2);
-                         }
-                    |    VOID ID '(' ')' ';'
-                         {
-                             install_symbol($2);
-                         }
-                    |    VOID ID '(' Parameter_List ')' ';'
-                         {
-                             install_symbol($2);
-                         }
+Function_Declaration:    Function_Declarator ';'
                     ;
 
 Const_Declaration:    CONST Non_Void_Type_Specifier Const_Declarator_List ';'

@@ -11,6 +11,8 @@
 
     int tokenOn = 1;
     int sourceOn = 1;
+
+    char* copys();
 %}
 
 %x  COMMENT
@@ -158,7 +160,7 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
         bufIndex += yyleng;
 
         /* Return to Parser */
-        strcpy(yylval.ident, yytext);
+        yylval.ident =  copys(yytext);
         return ID;
     }
 
@@ -274,7 +276,7 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
         }
 
         /* Return to Parser */
-        strcpy(yylval.ident, str);
+        yylval.ident = copys(str);
         return CHAR_CONSTANT;
     }
 
@@ -300,7 +302,7 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
         bufIndex += yyleng;
 
         /* Return to Parser */
-        strcpy(yylval.ident, str);
+        yylval.ident = copys(str);
         return STRING_CONSTANT;
     }
 
@@ -317,7 +319,7 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
         bufIndex += yyleng;
 
         /* Return to Parser */
-        strcpy(yylval.ident, yytext);
+        yylval.ident = copys(yytext);
         return ID;
     }
 
