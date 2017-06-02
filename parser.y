@@ -50,10 +50,8 @@ External_Declaration:   Function_Definition { FunctionNum++; }
 Function_Definition:    Function_Declarator  Compound_Statement
                    ;
 
-Function_Declarator:    Non_Void_Type_Specifier ID '(' ')'                   { install_symbol($2); }
-                   |    Non_Void_Type_Specifier ID '(' Parameter_List ')'    { install_symbol($2); }
-                   |    VOID ID '(' ')'                                      { install_symbol($2); }
-                   |    VOID ID '(' Parameter_List ')'                       { install_symbol($2); }
+Function_Declarator:    Non_Void_Type_Specifier ID { install_symbol($2); } '(' Parameter_List ')'
+                   |    VOID ID { install_symbol($2); } '(' Parameter_List ')'
                    ;
 
 Declaration:    Function_Declaration
@@ -97,8 +95,9 @@ Parameter_List:    Parameter
               |    Parameter_List ',' Parameter
               ;
 
-Parameter:    Non_Void_Type_Specifier ID
-         |    Non_Void_Type_Specifier Array
+Parameter:    Non_Void_Type_Specifier ID        { install_symbol($2); }
+         |    Non_Void_Type_Specifier Array     { install_symbol($2); }
+         |    /* empty */
          ;
 
 Array:   ID Array_Paranthesis   { $$ = $1; }
@@ -136,19 +135,20 @@ Compound_Statement:   '{' '}'
                       {
                           cur_scope++;
                       }
-                      Block_Item_List '}'
+                      Declaration_List
                       {
+
+                      }
+                      Statement_List '}'
+                      {
+                          //pop_up_symbol(cur_scope);
                           cur_scope--;
                       }
                   ;
 
-Block_Item_List:    Block_Item
-               |    Block_Item_List Block_Item
-               ;
-
-Block_Item:    Declaration
-          |    Statement
-          ;
+Declaration_List:    Declaration
+                |    Declaration_List Declaration
+                ;
 
 Statement:    Simple_Statement
          |    Switch_Statement
@@ -259,6 +259,9 @@ Postfix_Expression:    Primary_Expression
                   ;
 
 Primary_Expression:    Var
+                       {
+
+                       }
                   |    INT_CONSTANT
                   |    DOUBLE_CONSTANT
                   |    CHAR_CONSTANT
