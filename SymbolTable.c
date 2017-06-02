@@ -281,5 +281,5 @@ void printTable()
     int i;
     puts("\n-------------------------------------");
     for(i=0 ; i<cur_counter ; i++)
-        printf("% -10s    scope:% -5d     offset:% -5d\n",table[i].name, table[i].scope, table[i].offset);
+        printf("% -10s    scope:% -5d     offset:% -5d    total_args:% -5d    total_locals:% -5d\n",table[i].name, table[i].scope, table[i].offset, table[i].total_args, table[i].total_locals);
 }

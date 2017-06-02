@@ -27,7 +27,7 @@
 %token <ident> ID
 
 %token <charVal> ';' ':' '?' '=' '(' ')' '[' ']' '{' '}' '&'
-%type <ident> Array
+%type <ident> Array Function_Declarator Function_Declaration
 
 %union {
          int       token ;
@@ -47,11 +47,26 @@ External_Declaration:   Function_Definition { FunctionNum++; }
                     |   Declaration
                     ;
 
-Function_Definition:    Function_Declarator  Compound_Statement
+Function_Definition:    Function_Declarator '{'
+                        {
+                            cur_scope++;
+                            set_scope_and_offset_of_param($1);
+                        }
+                        Declaration_List
+                        {
+                            set_local_vars($1);
+                        }
+                        Statement_List '}'
+                        {
+                            //pop_up_symbol(cur_scope);
+                            cur_scope--;
+                        }
                    ;
 
-Function_Declarator:    Non_Void_Type_Specifier ID { install_symbol($2); } '(' Parameter_List ')'
-                   |    VOID ID { install_symbol($2); } '(' Parameter_List ')'
+Function_Declarator:    Non_Void_Type_Specifier ID       { install_symbol($2); }
+                        '(' Parameter_List ')'           { $$ = $2; }
+                   |    VOID ID                          { install_symbol($2); }
+                        '(' Parameter_List ')'           { $$ = $2; }
                    ;
 
 Declaration:    Function_Declaration
