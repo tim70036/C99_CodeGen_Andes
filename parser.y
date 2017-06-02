@@ -130,8 +130,7 @@ Non_Void_Type_Specifier:    INT
 
 
 
-Compound_Statement:   '{' '}'
-                  |   '{'
+Compound_Statement:   '{'
                       {
                           cur_scope++;
                       }
@@ -146,7 +145,7 @@ Compound_Statement:   '{' '}'
                       }
                   ;
 
-Declaration_List:    Declaration
+Declaration_List:    /* empty */
                 |    Declaration_List Declaration
                 ;
 
@@ -173,15 +172,12 @@ Case_List:    Case_Content
 
 Case_Content:     CASE INT_CONSTANT ':' Statement_List
             |     CASE CHAR_CONSTANT ':' Statement_List
-            |     CASE INT_CONSTANT ':'
-            |     CASE CHAR_CONSTANT ':'
             ;
 
 Default_Content:    DEFAULT ':' Statement_List
-               |    DEFAULT ':'
                ;
 
-Statement_List:    Statement
+Statement_List:    /* empty */
               |    Statement_List Statement
               ;
 
