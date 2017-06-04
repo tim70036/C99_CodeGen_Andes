@@ -20,14 +20,14 @@
 %token <token> VOID INT CHAR BOOL DOUBLE CONST NUL STRUCT TRUE FALSE
 %token <token> CASE DEFAULT DO WHILE FOR IF ELSE SWITCH
 %token <token> CONTINUE BREAK RETURN
-%token INT_CONSTANT
+%token <intVal> INT_CONSTANT
 %token DOUBLE_CONSTANT
 %token CHAR_CONSTANT
 %token STRING_CONSTANT
 %token <ident> ID
 
 %token <charVal> ';' ':' '?' '=' '(' ')' '[' ']' '{' '}' '&'
-%type <ident> Array Function_Declarator Function_Declaration
+%type <ident> Array Function_Declarator Function_Declaration Declaration Var Primary_Expression
 
 %union {
          int       token ;
@@ -44,7 +44,7 @@ Translation_Unit:   External_Declaration
                 ;
 
 External_Declaration:   Function_Definition { FunctionNum++; }
-                    |   Declaration
+                    |   Declaration         { /*set_global_vars($1);*/ }
                     ;
 
 Function_Definition:    Function_Declarator '{'
@@ -69,9 +69,9 @@ Function_Declarator:    Non_Void_Type_Specifier ID       { install_symbol($2); }
                         '(' Parameter_List ')'           { $$ = $2; }
                    ;
 
-Declaration:    Function_Declaration
-           |    Const_Declaration
-           |    Normal_Declaration
+Declaration:    Function_Declaration    { $$ = $1; }
+           |    Const_Declaration       { $$ = NULL; }
+           |    Normal_Declaration      { $$ = NULL; }
            ;
 
 Function_Declaration:    Function_Declarator ';'
@@ -130,8 +130,8 @@ Array_Expression:    '[' Expression ']'
                 |    Array_Expression '[' Expression ']'
                 ;
 
-Var:    ID
-   |    ID Array_Expression
+Var:    ID                      { $$ = $1; }
+   |    ID Array_Expression     { $$ = $1; }
    ;
 
 Non_Void_Type_Specifier:    INT
@@ -172,6 +172,13 @@ Statement:    Simple_Statement
          ;
 
 Simple_Statement:    Var '=' Expression ';'
+                     {
+                         int index = look_up_symbol($1);
+
+                         /* Load Expression to $r0 */
+                         printf("    pop.s { $r0 }\n");
+                         printf("    swi $r0, [$sp+%d]\n",table[index].offset*4);
+                     }
                 ;
 
 Switch_Statement:    SWITCH '(' ID ')' '{' Switch_Content '}'
@@ -251,13 +258,43 @@ Relational_Expression:    Additive_Expression
 
 Additive_Expression:    Multiplicative_Expression
                    |    Additive_Expression PLUS_OP Multiplicative_Expression
+                        {
+                            printf("    pop.s { $r0 }\n");
+                            printf("    pop.s { $r1 }\n");
+                            printf("    add $r0, $r1, $r0\n");
+                            printf("    push.s { $r0 }\n");
+                        }
                    |    Additive_Expression MINUS_OP Multiplicative_Expression
+                        {
+                            printf("    pop.s { $r0 }\n");
+                            printf("    pop.s { $r1 }\n");
+                            printf("    sub $r0, $r1, $r0\n");
+                            printf("    push.s { $r0 }\n");
+                        }
                    ;
 
 Multiplicative_Expression:    Unary_Expression
                          |    Multiplicative_Expression MUL_OP Unary_Expression
+                              {
+                                  printf("    pop.s { $r0 }\n");
+                                  printf("    pop.s { $r1 }\n");
+                                  printf("    mul $r0, $r1, $r0\n");
+                                  printf("    push.s { $r0 }\n");
+                              }
                          |    Multiplicative_Expression DIV_OP Unary_Expression
+                              {
+                                  printf("    pop.s { $r2 }\n");
+                                  printf("    pop.s { $r3 }\n");
+                                  printf("    divsr $r0, $r1, $r3, $r2\n");
+                                  printf("    push.s { $r0 }\n");
+                              }
                          |    Multiplicative_Expression MOD_OP Unary_Expression
+                              {
+                                  printf("    pop.s { $r2 }\n");
+                                  printf("    pop.s { $r3 }\n");
+                                  printf("    divsr $r0, $r1, $r3, $r2\n");
+                                  printf("    push.s { $r1 }\n");
+                              }
                          ;
 
 Unary_Expression:    Postfix_Expression
@@ -271,14 +308,36 @@ Postfix_Expression:    Primary_Expression
 
 Primary_Expression:    Var
                        {
+                            int index = look_up_symbol($1);
 
+                            /* Load to r0 */
+                            switch(table[index].mode)
+                            {
+                                case ARGUMENT_MODE:
+                                    printf("    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                                    break;
+                                case LOCAL_MODE:
+                                    printf("    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                                    break;
+                                /* global */
+                            }
+
+                            /* Push to stack */
+                            printf("    push.s { $r0 }\n");
                        }
                   |    INT_CONSTANT
-                  |    DOUBLE_CONSTANT
-                  |    CHAR_CONSTANT
-                  |    STRING_CONSTANT
-                  |    TRUE
-                  |    FALSE
+                       {
+                            $$ = NULL;
+
+                            /* Move num to $r0 and push to stack */
+                            printf("    movi $r0, %d\n",$1);
+                            printf("    push.s { $r0 }\n");
+                       }
+                  |    DOUBLE_CONSTANT                  { $$ = NULL; }
+                  |    CHAR_CONSTANT                    { $$ = NULL; }
+                  |    STRING_CONSTANT                  { $$ = NULL; }
+                  |    TRUE                             { $$ = NULL; }
+                  |    FALSE                            { $$ = NULL; }
                   |    '(' Expression ')'
                   |    ID '(' ')'
                   |    ID '(' Expression_List ')'
