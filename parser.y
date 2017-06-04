@@ -1,10 +1,10 @@
-
 %{
     #include <stdio.h>
     #include <stdlib.h>
     #include "SymbolTable.h"
 
     int FunctionNum = 0;
+    FILE *f_asm;
 %}
 
 %start Translation_Unit
@@ -176,8 +176,9 @@ Simple_Statement:    Var '=' Expression ';'
                          int index = look_up_symbol($1);
 
                          /* Load Expression to $r0 */
-                         printf("    pop.s { $r0 }\n");
-                         printf("    swi $r0, [$sp+%d]\n",table[index].offset*4);
+                         fprintf(f_asm, "    pop.s { $r0 }\n");
+                         /* Store it to var */
+                         fprintf(f_asm, "    swi $r0, [$sp+%d]\n",table[index].offset*4);
                      }
                 ;
 
@@ -259,41 +260,41 @@ Relational_Expression:    Additive_Expression
 Additive_Expression:    Multiplicative_Expression
                    |    Additive_Expression PLUS_OP Multiplicative_Expression
                         {
-                            printf("    pop.s { $r0 }\n");
-                            printf("    pop.s { $r1 }\n");
-                            printf("    add $r0, $r1, $r0\n");
-                            printf("    push.s { $r0 }\n");
+                            fprintf(f_asm, "    pop.s { $r0 }\n");
+                            fprintf(f_asm, "    pop.s { $r1 }\n");
+                            fprintf(f_asm, "    add $r0, $r1, $r0\n");
+                            fprintf(f_asm, "    push.s { $r0 }\n");
                         }
                    |    Additive_Expression MINUS_OP Multiplicative_Expression
                         {
-                            printf("    pop.s { $r0 }\n");
-                            printf("    pop.s { $r1 }\n");
-                            printf("    sub $r0, $r1, $r0\n");
-                            printf("    push.s { $r0 }\n");
+                            fprintf(f_asm, "    pop.s { $r0 }\n");
+                            fprintf(f_asm, "    pop.s { $r1 }\n");
+                            fprintf(f_asm, "    sub $r0, $r1, $r0\n");
+                            fprintf(f_asm, "    push.s { $r0 }\n");
                         }
                    ;
 
 Multiplicative_Expression:    Unary_Expression
                          |    Multiplicative_Expression MUL_OP Unary_Expression
                               {
-                                  printf("    pop.s { $r0 }\n");
-                                  printf("    pop.s { $r1 }\n");
-                                  printf("    mul $r0, $r1, $r0\n");
-                                  printf("    push.s { $r0 }\n");
+                                  fprintf(f_asm, "    pop.s { $r0 }\n");
+                                  fprintf(f_asm, "    pop.s { $r1 }\n");
+                                  fprintf(f_asm, "    mul $r0, $r1, $r0\n");
+                                  fprintf(f_asm, "    push.s { $r0 }\n");
                               }
                          |    Multiplicative_Expression DIV_OP Unary_Expression
                               {
-                                  printf("    pop.s { $r2 }\n");
-                                  printf("    pop.s { $r3 }\n");
-                                  printf("    divsr $r0, $r1, $r3, $r2\n");
-                                  printf("    push.s { $r0 }\n");
+                                  fprintf(f_asm, "    pop.s { $r2 }\n");
+                                  fprintf(f_asm, "    pop.s { $r3 }\n");
+                                  fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
+                                  fprintf(f_asm, "    push.s { $r0 }\n");
                               }
                          |    Multiplicative_Expression MOD_OP Unary_Expression
                               {
-                                  printf("    pop.s { $r2 }\n");
-                                  printf("    pop.s { $r3 }\n");
-                                  printf("    divsr $r0, $r1, $r3, $r2\n");
-                                  printf("    push.s { $r1 }\n");
+                                  fprintf(f_asm, "    pop.s { $r2 }\n");
+                                  fprintf(f_asm, "    pop.s { $r3 }\n");
+                                  fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
+                                  fprintf(f_asm, "    push.s { $r1 }\n");
                               }
                          ;
 
@@ -314,24 +315,24 @@ Primary_Expression:    Var
                             switch(table[index].mode)
                             {
                                 case ARGUMENT_MODE:
-                                    printf("    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                                    fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                                     break;
                                 case LOCAL_MODE:
-                                    printf("    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                                    fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                                     break;
                                 /* global */
                             }
 
                             /* Push to stack */
-                            printf("    push.s { $r0 }\n");
+                            fprintf(f_asm, "    push.s { $r0 }\n");
                        }
                   |    INT_CONSTANT
                        {
                             $$ = NULL;
 
                             /* Move num to $r0 and push to stack */
-                            printf("    movi $r0, %d\n",$1);
-                            printf("    push.s { $r0 }\n");
+                            fprintf(f_asm, "    movi $r0, %d\n",$1);
+                            fprintf(f_asm, "    push.s { $r0 }\n");
                        }
                   |    DOUBLE_CONSTANT                  { $$ = NULL; }
                   |    CHAR_CONSTANT                    { $$ = NULL; }
@@ -427,6 +428,10 @@ int main(void)
 {
     /* Symbol table init */
     init_symbol_table();
+
+    /* Open assembly file */
+    if( (f_asm = fopen("assembly", "w")) == NULL )
+        fprintf(stderr, "Can not open the file %s for writing.\n", "assembly");
 
     yyparse();
     if (FunctionNum == 0) yyerror(NULL);

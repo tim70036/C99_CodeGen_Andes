@@ -13,7 +13,7 @@
 #include <string.h>
 #include "SymbolTable.h"
 
-//extern FILE *f_asm;
+extern FILE *f_asm;
 int cur_counter = 0;
 int cur_scope   = 1;
 char *copys();
