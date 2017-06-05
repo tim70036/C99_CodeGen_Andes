@@ -3,6 +3,7 @@
 %{
     #include <stdio.h>
     #include <string.h>
+    #include "SymbolTable.h"
     #include "y.tab.h"
 
     int numL = 1;
@@ -13,9 +14,12 @@
     int sourceOn = 1;
 
     char* copys();
+    extern FILE *f_asm;
 %}
 
 %x  COMMENT
+%x  DIGITALWRITE
+%x  DELAY
 
 DIGIT    [0-9]
 DIGIT_SEQ  {DIGIT}+
@@ -119,6 +123,51 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
         /* Single line comment , simply copy to buf, and wait for \n to handle*/
         strcpy(&(buf[bufIndex]), yytext);
         bufIndex += yyleng;
+    }
+
+
+
+"digitalWrite(" {
+        /* Special function from Andes */
+        BEGIN(DIGITALWRITE);
+    }
+<DIGITALWRITE>{INT} {
+        int num = atoi(yytext);
+        fprintf(f_asm, "    movi $r0, %d\n",num);
+    }
+<DIGITALWRITE>"LOW" {
+        fprintf(f_asm, "    movi $r1, 0\n");
+    }
+<DIGITALWRITE>"HIGH" {
+        fprintf(f_asm, "    movi $r1, 1\n");
+
+    }
+<DIGITALWRITE>";" {
+        fprintf(f_asm, "    bal digitalWrite\n");
+        BEGIN(INITIAL);
+    }
+"delay(" {
+        /* Special function from Andes */
+        BEGIN(DELAY);
+    }
+<DELAY>{ID} {
+        int index = look_up_symbol(yytext);
+
+        /* Load to r0 */
+        switch(table[index].mode)
+        {
+            case ARGUMENT_MODE:
+                fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                break;
+            case LOCAL_MODE:
+                fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                break;
+            /* global */
+        }
+    }
+<DELAY>";" {
+        fprintf(f_asm, "    bal delay\n");
+        BEGIN(INITIAL);
     }
 
 {KEY}   {

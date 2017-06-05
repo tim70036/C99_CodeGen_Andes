@@ -4,6 +4,7 @@
     #include "SymbolTable.h"
 
     int FunctionNum = 0;
+    int LocalOffset = 1;
     FILE *f_asm;
 %}
 
@@ -28,6 +29,7 @@
 
 %token <charVal> ';' ':' '?' '=' '(' ')' '[' ']' '{' '}' '&'
 %type <ident> Array Function_Declarator Function_Declaration Declaration Var Primary_Expression
+%type <ident> Init_Primary_Expression
 
 %union {
          int       token ;
@@ -51,6 +53,7 @@ Function_Definition:    Function_Declarator '{'
                         {
                             cur_scope++;
                             set_scope_and_offset_of_param($1);
+                            LocalOffset = 1;
                         }
                         Declaration_List
                         {
@@ -84,7 +87,19 @@ Const_Declarator_List:    Const_Declarator
                      |    Const_Declarator_List ',' Const_Declarator
                      ;
 
-Const_Declarator:    ID '=' INT_CONSTANT        { install_symbol($1); }
+Const_Declarator:    ID '=' INT_CONSTANT
+                     {
+                         install_symbol($1);
+                         int index = look_up_symbol($1);
+
+                         /* Setting, use set_local_vars will be too late */
+                         table[index].offset = LocalOffset++;
+
+                         /* Load Int constant to $r0 */
+                         fprintf(f_asm, "    pop.s { $r0 }\n");
+                         /* Store it to var */
+                         fprintf(f_asm, "    swi $r0, [$sp+%d]\n",table[index].offset*4);
+                     }
                 |    ID '=' DOUBLE_CONSTANT     { install_symbol($1); }
                 |    ID '=' CHAR_CONSTANT       { install_symbol($1); }
                 |    ID '=' STRING_CONSTANT     { install_symbol($1); }
@@ -101,7 +116,19 @@ Normal_Declarator_List:    Normal_Declarator
 
 Normal_Declarator:    ID                        { install_symbol($1); }
                  |    Array                     { install_symbol($1); }
-                 |    ID '=' Init_Expression    { install_symbol($1); }
+                 |    ID '=' Init_Expression
+                      {
+                          install_symbol($1);
+                          int index = look_up_symbol($1);
+
+                          /* Setting, use set_local_vars will be too late */
+                          table[index].offset = LocalOffset++;
+
+                          /* Load Expression to $r0 */
+                          fprintf(f_asm, "    pop.s { $r0 }\n");
+                          /* Store it to var */
+                          fprintf(f_asm, "    swi $r0, [$sp+%d]\n",table[index].offset*4);
+                      }
                  |    Array '=' Array_Content   { install_symbol($1); }
                  ;
 
@@ -148,10 +175,11 @@ Non_Void_Type_Specifier:    INT
 Compound_Statement:   '{'
                       {
                           cur_scope++;
+                          LocalOffset = 1;
                       }
                       Declaration_List
                       {
-
+                          set_local_vars($1);
                       }
                       Statement_List '}'
                       {
@@ -386,12 +414,42 @@ Init_Relational_Expression:    Init_Additive_Expression
                           ;
 Init_Additive_Expression:    Init_Multiplicative_Expression
                         |    Init_Additive_Expression PLUS_OP Init_Multiplicative_Expression
+                             {
+                                 fprintf(f_asm, "    pop.s { $r0 }\n");
+                                 fprintf(f_asm, "    pop.s { $r1 }\n");
+                                 fprintf(f_asm, "    add $r0, $r1, $r0\n");
+                                 fprintf(f_asm, "    push.s { $r0 }\n");
+                             }
                         |    Init_Additive_Expression MINUS_OP Init_Multiplicative_Expression
+                             {
+                                 fprintf(f_asm, "    pop.s { $r0 }\n");
+                                 fprintf(f_asm, "    pop.s { $r1 }\n");
+                                 fprintf(f_asm, "    sub $r0, $r1, $r0\n");
+                                 fprintf(f_asm, "    push.s { $r0 }\n");
+                             }
                         ;
 Init_Multiplicative_Expression:    Init_Unary_Expression
                               |    Init_Multiplicative_Expression MUL_OP Init_Unary_Expression
+                                   {
+                                       fprintf(f_asm, "    pop.s { $r0 }\n");
+                                       fprintf(f_asm, "    pop.s { $r1 }\n");
+                                       fprintf(f_asm, "    mul $r0, $r1, $r0\n");
+                                       fprintf(f_asm, "    push.s { $r0 }\n");
+                                   }
                               |    Init_Multiplicative_Expression DIV_OP Init_Unary_Expression
+                                   {
+                                       fprintf(f_asm, "    pop.s { $r2 }\n");
+                                       fprintf(f_asm, "    pop.s { $r3 }\n");
+                                       fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
+                                       fprintf(f_asm, "    push.s { $r0 }\n");
+                                   }
                               |    Init_Multiplicative_Expression MOD_OP Init_Unary_Expression
+                                   {
+                                       fprintf(f_asm, "    pop.s { $r2 }\n");
+                                       fprintf(f_asm, "    pop.s { $r3 }\n");
+                                       fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
+                                       fprintf(f_asm, "    push.s { $r1 }\n");
+                                   }
                               ;
 Init_Unary_Expression:    Init_Postfix_Expression
                      |    MINUS_OP Init_Postfix_Expression
@@ -401,12 +459,37 @@ Init_Postfix_Expression:    Init_Primary_Expression
                        |    Init_Primary_Expression MINUSMINUS_OP
                        ;
 Init_Primary_Expression:    Var
+                            {
+                                 int index = look_up_symbol($1);
+
+                                 /* Load to r0 */
+                                 switch(table[index].mode)
+                                 {
+                                     case ARGUMENT_MODE:
+                                         fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                                         break;
+                                     case LOCAL_MODE:
+                                         fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                                         break;
+                                     /* global */
+                                 }
+
+                                 /* Push to stack */
+                                 fprintf(f_asm, "    push.s { $r0 }\n");
+                            }
                        |    INT_CONSTANT
-                       |    DOUBLE_CONSTANT
-                       |    CHAR_CONSTANT
-                       |    STRING_CONSTANT
-                       |    TRUE
-                       |    FALSE
+                            {
+                                $$ = NULL;
+
+                                /* Move num to $r0 and push to stack */
+                                fprintf(f_asm, "    movi $r0, %d\n",$1);
+                                fprintf(f_asm, "    push.s { $r0 }\n");
+                            }
+                       |    DOUBLE_CONSTANT             { $$ = NULL; }
+                       |    CHAR_CONSTANT               { $$ = NULL; }
+                       |    STRING_CONSTANT             { $$ = NULL; }
+                       |    TRUE                        { $$ = NULL; }
+                       |    FALSE                       { $$ = NULL; }
                        |    '(' Init_Expression ')'
                        ;
 
@@ -438,6 +521,6 @@ int main(void)
     printf("No syntax error!\n");
 
     printTable();
-
+    fclose(f_asm);
     return 0;
 }
