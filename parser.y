@@ -4,7 +4,7 @@
     #include "SymbolTable.h"
 
     int FunctionNum = 0;
-    int LocalOffset = 1;
+    int LocalOffset = 0;
     FILE *f_asm;
 %}
 
@@ -53,7 +53,7 @@ Function_Definition:    Function_Declarator '{'
                         {
                             cur_scope++;
                             set_scope_and_offset_of_param($1);
-                            LocalOffset = 1;
+                            LocalOffset = 0;
                         }
                         Declaration_List
                         {
@@ -175,7 +175,7 @@ Non_Void_Type_Specifier:    INT
 Compound_Statement:   '{'
                       {
                           cur_scope++;
-                          LocalOffset = 1;
+                          LocalOffset = 0;
                       }
                       Declaration_List
                       {

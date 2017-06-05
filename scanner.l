@@ -131,6 +131,21 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
         /* Special function from Andes */
         BEGIN(DIGITALWRITE);
     }
+<DIGITALWRITE>{ID} {
+        int index = look_up_symbol(yytext);
+
+        /* Load to r0 */
+        switch(table[index].mode)
+        {
+            case ARGUMENT_MODE:
+                fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                break;
+            case LOCAL_MODE:
+                fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                break;
+            /* global */
+        }
+    }
 <DIGITALWRITE>{INT} {
         int num = atoi(yytext);
         fprintf(f_asm, "    movi $r0, %d\n",num);
@@ -149,6 +164,10 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
 "delay(" {
         /* Special function from Andes */
         BEGIN(DELAY);
+    }
+<DELAY>{INT} {
+        int num = atoi(yytext);
+        fprintf(f_asm, "    movi $r0, %d\n",num);
     }
 <DELAY>{ID} {
         int index = look_up_symbol(yytext);

@@ -125,7 +125,7 @@ char *s;
 
 
 /*
-   Set up local var offset
+   Set up local var
 
 */
 void set_local_vars(functor)
@@ -144,7 +144,6 @@ char *functor;
   for (j=total_locals, i=cur_counter-1;j>0; i--,j--)
         {
           table[i].scope= cur_scope;
-          table[i].offset= j;
           table[i].mode  = LOCAL_MODE;
         }
 
