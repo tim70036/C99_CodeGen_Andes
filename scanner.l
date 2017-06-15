@@ -131,6 +131,14 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
         /* Special function from Andes */
         BEGIN(DIGITALWRITE);
     }
+<DIGITALWRITE>"LOW" {
+        fprintf(f_asm, "    movi $r1, 0\n");
+    }
+
+<DIGITALWRITE>"HIGH" {
+        fprintf(f_asm, "    movi $r1, 1\n");
+
+    }
 <DIGITALWRITE>{ID} {
         int index = look_up_symbol(yytext);
 
@@ -141,7 +149,7 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
                 fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                 break;
             case LOCAL_MODE:
-                fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                fprintf(f_asm, "    lwi $r0, [$fp-%d]\n",table[index].offset*4);
                 break;
             /* global */
         }
@@ -150,17 +158,11 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
         int num = atoi(yytext);
         fprintf(f_asm, "    movi $r0, %d\n",num);
     }
-<DIGITALWRITE>"LOW" {
-        fprintf(f_asm, "    movi $r1, 0\n");
-    }
-<DIGITALWRITE>"HIGH" {
-        fprintf(f_asm, "    movi $r1, 1\n");
-
-    }
 <DIGITALWRITE>";" {
         fprintf(f_asm, "    bal digitalWrite\n");
         BEGIN(INITIAL);
     }
+
 "delay(" {
         /* Special function from Andes */
         BEGIN(DELAY);
@@ -179,7 +181,7 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
                 fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                 break;
             case LOCAL_MODE:
-                fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
+                fprintf(f_asm, "    lwi $r0, [$fp-%d]\n",table[index].offset*4);
                 break;
             /* global */
         }

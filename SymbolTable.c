@@ -143,7 +143,7 @@ char *functor;
   table[index].total_locals=total_locals;
   for (j=total_locals, i=cur_counter-1;j>0; i--,j--)
         {
-          table[i].scope= cur_scope;
+          table[i].scope = cur_scope;
           table[i].mode  = LOCAL_MODE;
         }
 
