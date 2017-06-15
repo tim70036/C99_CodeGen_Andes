@@ -263,8 +263,38 @@ Selection_Statement_Tail:    /* empty, only if */
                              }
                         ;
 
-Iteration_Statement:    WHILE '(' Expression ')' Compound_Statement
-                   |    DO Compound_Statement WHILE '(' Expression ')' ';'
+Iteration_Statement:    WHILE
+                        {
+                            /* Label for checking expression */
+                            fprintf(f_asm, ".L%d:\n", LabelNum);
+                        }
+                        '(' Expression ')'
+                        {
+                            /* Check expression, if false go to end */
+                            fprintf(f_asm, "    pop.s { $r0 }\n");
+                            fprintf(f_asm, "    beqz $r0, L%d\n", LabelNum+1);
+                        }
+                        Compound_Statement
+                        {
+                            /* Jump back to check expression */
+                            fprintf(f_asm, "    j .L%d\n", LabelNum);
+
+                            /* End , if false , branch to here */
+                            fprintf(f_asm, ".L%d:\n", LabelNum+1);
+                            LabelNum += 2;
+                        }
+                   |    DO
+                        {
+                            /* Label for compound statement */
+                            fprintf(f_asm, ".L%d:\n", LabelNum);
+                        }
+                        Compound_Statement WHILE '(' Expression ')' ';'
+                        {
+                            /* Check expression, if true go back to compound statement */
+                            fprintf(f_asm, "    pop.s { $r0 }\n");
+                            fprintf(f_asm, "    bnez $r0, L%d\n", LabelNum);
+                            LableNum++;
+                        }
                    |    FOR '(' Expression_Statement Expression_Statement ')' Compound_Statement
                    |    FOR '(' Expression_Statement Expression_Statement Expression ')' Compound_Statement
                    ;
