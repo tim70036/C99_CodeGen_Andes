@@ -266,23 +266,89 @@ Conditional_Expression:    Logical_Or_Expression
 
 Logical_Or_Expression:    Logical_And_Expression
                      |    Logical_Or_Expression OR_OP Logical_And_Expression
+                          {
+                              fprintf(f_asm, "    pop.s { $r0 }\n");
+                              fprintf(f_asm, "    pop.s { $r1 }\n");
+                              fprintf(f_asm, "    or $r0, $r0, $r1\n");
+                              fprintf(f_asm, "    push.s { $r0 }\n");
+                          }
                      ;
 
 Logical_And_Expression:    Not_Expression
                       |    Logical_And_Expression AND_OP Not_Expression
+                           {
+                               fprintf(f_asm, "    pop.s { $r0 }\n");
+                               fprintf(f_asm, "    pop.s { $r1 }\n");
+                               fprintf(f_asm, "    and $r0, $r0, $r1\n");
+                               fprintf(f_asm, "    push.s { $r0 }\n");
+                           }
                       ;
 
 Not_Expression:    Relational_Expression
               |    NOT_OP Relational_Expression
+                   {
+                       fprintf(f_asm, "    pop.s { $r0 }\n");
+                       fprintf(f_asm, "    addi $r0, $r0, 0\n"); /* ??? */
+                       fprintf(f_asm, "    slti $r0, $r0, 1\n");
+                       fprintf(f_asm, "    zeb $r0, $r0\n");
+                       fprintf(f_asm, "    push.s { $r0 }\n");
+                   }
               ;
 
 Relational_Expression:    Additive_Expression
                      |    Relational_Expression LT_OP Additive_Expression
+                          {
+                              fprintf(f_asm, "    pop.s { $r0 }\n");
+                              fprintf(f_asm, "    pop.s { $r1 }\n");
+                              fprintf(f_asm, "    slts $r0, $r1, $r0\n");
+                              fprintf(f_asm, "    zeb $r0, $r0\n");
+                              fprintf(f_asm, "    push.s { $r0 }\n");
+                          }
                      |    Relational_Expression LE_OP Additive_Expression
+                          {
+                              fprintf(f_asm, "    pop.s { $r0 }\n");
+                              fprintf(f_asm, "    pop.s { $r1 }\n");
+                              fprintf(f_asm, "    slts $r0, $r0, $r1\n"); /* $r1 > $r0 ? */
+                              fprintf(f_asm, "    xori $r0, $r0, 1\n"); /* if $r0 == 1, $r0 = 0 */
+                              fprintf(f_asm, "    zeb $r0, $r0\n");
+                              fprintf(f_asm, "    push.s { $r0 }\n");
+                          }
                      |    Relational_Expression GT_OP Additive_Expression
+                          {
+                              fprintf(f_asm, "    pop.s { $r0 }\n");
+                              fprintf(f_asm, "    pop.s { $r1 }\n");
+                              fprintf(f_asm, "    slts $r0, $r0, $r1\n");
+                              fprintf(f_asm, "    zeb $r0, $r0\n");
+                              fprintf(f_asm, "    push.s { $r0 }\n");
+                          }
                      |    Relational_Expression GE_OP Additive_Expression
+                          {
+                              fprintf(f_asm, "    pop.s { $r0 }\n");
+                              fprintf(f_asm, "    pop.s { $r1 }\n");
+                              fprintf(f_asm, "    slts $r0, $r1, $r0\n"); /* $r1 < $r0 ? */
+                              fprintf(f_asm, "    xori $r0, $r0, 1\n"); /* if $r0 == 1, $r0 = 0 */
+                              fprintf(f_asm, "    zeb $r0, $r0\n");
+                              fprintf(f_asm, "    push.s { $r0 }\n");
+                          }
                      |    Relational_Expression EQUAL_OP Additive_Expression
+                          {
+                              fprintf(f_asm, "    pop.s { $r0 }\n");
+                              fprintf(f_asm, "    pop.s { $r1 }\n");
+                              fprintf(f_asm, "    xor $r0, $r0, $r1\n"); /* If $r0 == $r1 , then result of xor will be 0 --> < 1 */
+                              fprintf(f_asm, "    slti $r0, $r0, 1\n");
+                              fprintf(f_asm, "    zeb $r0, $r0\n");
+                              fprintf(f_asm, "    push.s { $r0 }\n");
+                          }
                      |    Relational_Expression NEQUAL_OP Additive_Expression
+                          {
+                              fprintf(f_asm, "    pop.s { $r0 }\n");
+                              fprintf(f_asm, "    pop.s { $r1 }\n");
+                              fprintf(f_asm, "    xor $r0, $r0, $r1\n"); /* If $r0 != $r1 , then result of xor will be > 0 */
+                              fprintf(f_asm, "    movi $r1, 0\n");
+                              fprintf(f_asm, "    slt $r0, $r1, $r0\n");
+                              fprintf(f_asm, "    zeb $r0, $r0\n");
+                              fprintf(f_asm, "    push.s { $r0 }\n");
+                          }
                      ;
 
 Additive_Expression:    Multiplicative_Expression
@@ -328,6 +394,11 @@ Multiplicative_Expression:    Unary_Expression
 
 Unary_Expression:    Postfix_Expression
                 |    MINUS_OP Postfix_Expression
+                     {
+                         fprintf(f_asm, "    pop.s { $r0 }\n");
+                         fprintf(f_asm, "    subri $r0, $r0, 0\n");
+                         fprintf(f_asm, "    push.s { $r0 }\n");
+                     }
                 ;
 
 Postfix_Expression:    Primary_Expression
@@ -397,20 +468,86 @@ Init_Conditional_Expression:    Init_Logical_Or_Expression
                            ;
 Init_Logical_Or_Expression:    Init_Logical_And_Expression
                           |    Init_Logical_Or_Expression OR_OP Init_Logical_And_Expression
+                               {
+                                   fprintf(f_asm, "    pop.s { $r0 }\n");
+                                   fprintf(f_asm, "    pop.s { $r1 }\n");
+                                   fprintf(f_asm, "    or $r0, $r0, $r1\n");
+                                   fprintf(f_asm, "    push.s { $r0 }\n");
+                               }
                           ;
 Init_Logical_And_Expression:    Init_Not_Expression
                            |    Init_Logical_And_Expression AND_OP Init_Not_Expression
+                                {
+                                    fprintf(f_asm, "    pop.s { $r0 }\n");
+                                    fprintf(f_asm, "    pop.s { $r1 }\n");
+                                    fprintf(f_asm, "    and $r0, $r0, $r1\n");
+                                    fprintf(f_asm, "    push.s { $r0 }\n");
+                                }
                            ;
 Init_Not_Expression:    Init_Relational_Expression
                    |    NOT_OP Init_Relational_Expression
+                        {
+                            fprintf(f_asm, "    pop.s { $r0 }\n");
+                            fprintf(f_asm, "    addi $r0, $r0, 0\n"); /* ??? */
+                            fprintf(f_asm, "    slti $r0, $r0, 1\n");
+                            fprintf(f_asm, "    zeb $r0, $r0\n");
+                            fprintf(f_asm, "    push.s { $r0 }\n");
+                        }
                    ;
 Init_Relational_Expression:    Init_Additive_Expression
                           |    Init_Relational_Expression LT_OP Init_Additive_Expression
+                               {
+                                   fprintf(f_asm, "    pop.s { $r0 }\n");
+                                   fprintf(f_asm, "    pop.s { $r1 }\n");
+                                   fprintf(f_asm, "    slts $r0, $r1, $r0\n");
+                                   fprintf(f_asm, "    zeb $r0, $r0\n");
+                                   fprintf(f_asm, "    push.s { $r0 }\n");
+                               }
                           |    Init_Relational_Expression LE_OP Init_Additive_Expression
+                               {
+                                   fprintf(f_asm, "    pop.s { $r0 }\n");
+                                   fprintf(f_asm, "    pop.s { $r1 }\n");
+                                   fprintf(f_asm, "    slts $r0, $r0, $r1\n"); /* $r1 > $r0 ? */
+                                   fprintf(f_asm, "    xori $r0, $r0, 1\n"); /* if $r0 == 1, $r0 = 0 */
+                                   fprintf(f_asm, "    zeb $r0, $r0\n");
+                                   fprintf(f_asm, "    push.s { $r0 }\n");
+                               }
                           |    Init_Relational_Expression GT_OP Init_Additive_Expression
+                               {
+                                   fprintf(f_asm, "    pop.s { $r0 }\n");
+                                   fprintf(f_asm, "    pop.s { $r1 }\n");
+                                   fprintf(f_asm, "    slts $r0, $r0, $r1\n");
+                                   fprintf(f_asm, "    zeb $r0, $r0\n");
+                                   fprintf(f_asm, "    push.s { $r0 }\n");
+                               }
                           |    Init_Relational_Expression GE_OP Init_Additive_Expression
+                               {
+                                   fprintf(f_asm, "    pop.s { $r0 }\n");
+                                   fprintf(f_asm, "    pop.s { $r1 }\n");
+                                   fprintf(f_asm, "    slts $r0, $r1, $r0\n"); /* $r1 < $r0 ? */
+                                   fprintf(f_asm, "    xori $r0, $r0, 1\n"); /* if $r0 == 1, $r0 = 0 */
+                                   fprintf(f_asm, "    zeb $r0, $r0\n");
+                                   fprintf(f_asm, "    push.s { $r0 }\n");
+                               }
                           |    Init_Relational_Expression EQUAL_OP Init_Additive_Expression
+                               {
+                                   fprintf(f_asm, "    pop.s { $r0 }\n");
+                                   fprintf(f_asm, "    pop.s { $r1 }\n");
+                                   fprintf(f_asm, "    xor $r0, $r0, $r1\n"); /* If $r0 == $r1 , then result of xor will be 0 --> < 1 */
+                                   fprintf(f_asm, "    slti $r0, $r0, 1\n");
+                                   fprintf(f_asm, "    zeb $r0, $r0\n");
+                                   fprintf(f_asm, "    push.s { $r0 }\n");
+                               }
                           |    Init_Relational_Expression NEQUAL_OP Init_Additive_Expression
+                               {
+                                   fprintf(f_asm, "    pop.s { $r0 }\n");
+                                   fprintf(f_asm, "    pop.s { $r1 }\n");
+                                   fprintf(f_asm, "    xor $r0, $r0, $r1\n"); /* If $r0 != $r1 , then result of xor will be > 0 */
+                                   fprintf(f_asm, "    movi $r1, 0\n");
+                                   fprintf(f_asm, "    slt $r0, $r1, $r0\n");
+                                   fprintf(f_asm, "    zeb $r0, $r0\n");
+                                   fprintf(f_asm, "    push.s { $r0 }\n");
+                               }
                           ;
 Init_Additive_Expression:    Init_Multiplicative_Expression
                         |    Init_Additive_Expression PLUS_OP Init_Multiplicative_Expression
@@ -453,6 +590,11 @@ Init_Multiplicative_Expression:    Init_Unary_Expression
                               ;
 Init_Unary_Expression:    Init_Postfix_Expression
                      |    MINUS_OP Init_Postfix_Expression
+                          {
+                              fprintf(f_asm, "    pop.s { $r0 }\n");
+                              fprintf(f_asm, "    subri $r0, $r0, 0\n");
+                              fprintf(f_asm, "    push.s { $r0 }\n");
+                          }
                      ;
 Init_Postfix_Expression:    Init_Primary_Expression
                        |    Init_Primary_Expression PLUSPLUS_OP
@@ -517,6 +659,7 @@ int main(void)
         fprintf(stderr, "Can not open the file %s for writing.\n", "assembly");
 
     yyparse();
+
     if (FunctionNum == 0) yyerror(NULL);
     printf("No syntax error!\n");
 
