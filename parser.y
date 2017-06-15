@@ -5,6 +5,7 @@
 
     int FunctionNum = 0;
     int LocalOffset = 0;
+    int LabelNum = 2;
     FILE *f_asm;
 %}
 
@@ -61,7 +62,7 @@ Function_Definition:    Function_Declarator '{'
                         }
                         Statement_List '}'
                         {
-                            //pop_up_symbol(cur_scope);
+                            pop_up_symbol(cur_scope);
                             cur_scope--;
                         }
                    ;
@@ -183,7 +184,7 @@ Compound_Statement:   '{'
                       }
                       Statement_List '}'
                       {
-                          //pop_up_symbol(cur_scope);
+                          pop_up_symbol(cur_scope);
                           cur_scope--;
                       }
                   ;
@@ -232,9 +233,35 @@ Statement_List:    /* empty */
               |    Statement_List Statement
               ;
 
-Selection_Statement:    IF '(' Expression ')' Compound_Statement
-                   |    IF '(' Expression ')' Compound_Statement ELSE Compound_Statement
-                   ;
+Selection_Statement:    IF '(' Expression ')'
+                        {
+                            fprintf(f_asm, "    pop.s { $r0 }\n");
+                            fprintf(f_asm, "    beqz $r0, .L%d\n", LabelNum);
+                            /* If true, continue to compound statment */
+                        }
+                        Compound_Statement Selection_Statement_Tail
+
+Selection_Statement_Tail:    /* empty, only if */
+                             {
+                                 /* If false, ignore the compound statement. Branch to End */
+                                 fprintf(f_asm, ".L%d:\n", LabelNum);
+                                 LabelNum++;
+                             }
+                        |    ELSE
+                             {
+                                 /* If true, after compound statement. Must ignore else and branch to End */
+                                 fprintf(f_asm, "    j .L%d\n", LabelNum+1);
+
+                                 /* If false, ignore the compound statement. Branch to ELSE */
+                                 fprintf(f_asm, ".L%d:\n", LabelNum);
+                             }
+                             Compound_Statement
+                             {
+                                 /* End */
+                                 fprintf(f_asm, ".L%d:\n", LabelNum+1);
+                                 LabelNum += 2;
+                             }
+                        ;
 
 Iteration_Statement:    WHILE '(' Expression ')' Compound_Statement
                    |    DO Compound_Statement WHILE '(' Expression ')' ';'
