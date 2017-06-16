@@ -98,11 +98,10 @@ Const_Declarator:    ID '=' INT_CONSTANT
                          table[index].mode  = LOCAL_MODE;
 
                          /* Pop Int constant to $r0 */
-                         fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                         fprintf(f_asm, "    addi $sp, $sp, 4\n");
+                         PopReg(0);
 
                          /* Store it to var */
-                         fprintf(f_asm, "    swi $r0, [$fp-%d]\n",table[index].offset*4);
+                         fprintf(f_asm, "    swi $r0, [$sp+%d]\n",table[index].offset*4);
                      }
                 |    ID '=' DOUBLE_CONSTANT     { install_symbol($1); }
                 |    ID '=' CHAR_CONSTANT       { install_symbol($1); }
@@ -130,11 +129,10 @@ Normal_Declarator:    ID                        { install_symbol($1); }
                           table[index].mode  = LOCAL_MODE;
 
                           /* Pop Expression to $r0 */
-                          fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                          fprintf(f_asm, "    addi $sp, $sp, 4\n");
+                          PopReg(0);
 
                           /* Store it to var */
-                          fprintf(f_asm, "    swi $r0, [$fp-%d]\n",table[index].offset*4);
+                          fprintf(f_asm, "    swi $r0, [$sp+%d]\n",table[index].offset*4);
                       }
                  |    Array '=' Array_Content   { install_symbol($1); }
                  ;
@@ -211,11 +209,10 @@ Simple_Statement:    Var '=' Expression ';'
                          int index = look_up_symbol($1);
 
                          /* Pop Expression to $r0 */
-                         fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                         fprintf(f_asm, "    addi $sp, $sp, 4\n");
+                         PopReg(0);
 
                          /* Store it to var */
-                         fprintf(f_asm, "    swi $r0, [$fp-%d]\n",table[index].offset*4);
+                         fprintf(f_asm, "    swi $r0, [$sp+%d]\n",table[index].offset*4);
                      }
                 ;
 
@@ -244,8 +241,7 @@ Statement_List:    /* empty */
 Selection_Statement:    IF '(' Expression ')'
                         {
                             /* Pop expression to r0 */
-                            fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                            fprintf(f_asm, "    addi $sp, $sp, 4\n");
+                            PopReg(0);
 
                             fprintf(f_asm, "    beqz $r0, .L%d\n", LabelNum);
                             /* If true, continue to compound statment */
@@ -282,8 +278,7 @@ Iteration_Statement:    WHILE
                         '(' Expression ')'
                         {
                             /* Pop expression, if false go to end */
-                            fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                            fprintf(f_asm, "    addi $sp, $sp, 4\n");
+                            PopReg(0);
                             fprintf(f_asm, "    beqz $r0, L%d\n", LabelNum+1);
                         }
                         Compound_Statement
@@ -303,8 +298,7 @@ Iteration_Statement:    WHILE
                         Compound_Statement WHILE '(' Expression ')' ';'
                         {
                             /* Pop expression, if true go back to compound statement */
-                            fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                            fprintf(f_asm, "    addi $sp, $sp, 4\n");
+                            PopReg(0);
                             fprintf(f_asm, "    bnez $r0, L%d\n", LabelNum);
                             LabelNum++;
                         }
@@ -337,197 +331,137 @@ Conditional_Expression:    Logical_Or_Expression
 Logical_Or_Expression:    Logical_And_Expression
                      |    Logical_Or_Expression OR_OP Logical_And_Expression
                           {
-                              fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                              fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                              fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                              PopReg(0);
+                              PopReg(1);
                               fprintf(f_asm, "    or $r0, $r0, $r1\n");
-
-                              fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                              fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                              PushReg(0);
                           }
                      ;
 
 Logical_And_Expression:    Not_Expression
                       |    Logical_And_Expression AND_OP Not_Expression
                            {
-                               fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                               fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                               fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                               PopReg(0);
+                               PopReg(1);
                                fprintf(f_asm, "    and $r0, $r0, $r1\n");
-
-                               fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                               fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                               PushReg(0);
                            }
                       ;
 
 Not_Expression:    Relational_Expression
               |    NOT_OP Relational_Expression
                    {
-                       fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                       fprintf(f_asm, "    addi $sp, $sp, 4\n");
-
+                       PopReg(0);
                        fprintf(f_asm, "    addi $r0, $r0, 0\n"); /* ??? */
                        fprintf(f_asm, "    slti $r0, $r0, 1\n");
                        fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                       fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                       fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                       PushReg(0);
                    }
               ;
 
 Relational_Expression:    Additive_Expression
                      |    Relational_Expression LT_OP Additive_Expression
                           {
-                              fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                              fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                              fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                              PopReg(0);
+                              PopReg(1);
                               fprintf(f_asm, "    slts $r0, $r1, $r0\n");
                               fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                              fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                              fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                              PushReg(0);
                           }
                      |    Relational_Expression LE_OP Additive_Expression
                           {
-                              fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                              fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                              fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                              PopReg(0);
+                              PopReg(1);
                               fprintf(f_asm, "    slts $r0, $r0, $r1\n"); /* $r1 > $r0 ? */
                               fprintf(f_asm, "    xori $r0, $r0, 1\n"); /* if $r0 == 1, $r0 = 0 */
                               fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                              fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                              fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                              PushReg(0);
                           }
                      |    Relational_Expression GT_OP Additive_Expression
                           {
-                              fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                              fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                              fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                              PopReg(0);
+                              PopReg(1);
                               fprintf(f_asm, "    slts $r0, $r0, $r1\n");
                               fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                              fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                              fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                              PushReg(0);
                           }
                      |    Relational_Expression GE_OP Additive_Expression
                           {
-                              fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                              fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                              fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                              PopReg(0);
+                              PopReg(1);
                               fprintf(f_asm, "    slts $r0, $r1, $r0\n"); /* $r1 < $r0 ? */
                               fprintf(f_asm, "    xori $r0, $r0, 1\n"); /* if $r0 == 1, $r0 = 0 */
                               fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                              fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                              fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                              PushReg(0);
                           }
                      |    Relational_Expression EQUAL_OP Additive_Expression
                           {
-                              fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                              fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                              fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                              PopReg(0);
+                              PopReg(1);
                               fprintf(f_asm, "    xor $r0, $r0, $r1\n"); /* If $r0 == $r1 , then result of xor will be 0 --> < 1 */
                               fprintf(f_asm, "    slti $r0, $r0, 1\n");
                               fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                              fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                              fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                              PushReg(0);
                           }
                      |    Relational_Expression NEQUAL_OP Additive_Expression
                           {
-                              fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                              fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                              fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                              PopReg(0);
+                              PopReg(1);
                               fprintf(f_asm, "    xor $r0, $r0, $r1\n"); /* If $r0 != $r1 , then result of xor will be > 0 */
                               fprintf(f_asm, "    movi $r1, 0\n");
                               fprintf(f_asm, "    slt $r0, $r1, $r0\n");
                               fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                              fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                              fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                              PushReg(0);
                           }
                      ;
 
 Additive_Expression:    Multiplicative_Expression
                    |    Additive_Expression PLUS_OP Multiplicative_Expression
                         {
-                            fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                            fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                            fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                            PopReg(0);
+                            PopReg(1);
                             fprintf(f_asm, "    add $r0, $r1, $r0\n");
-
-                            fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                            fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                            PushReg(0);
                         }
                    |    Additive_Expression MINUS_OP Multiplicative_Expression
                         {
-                            fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                            fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                            fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                            PopReg(0);
+                            PopReg(1);
                             fprintf(f_asm, "    sub $r0, $r1, $r0\n");
-
-                            fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                            fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                            PushReg(0);
                         }
                    ;
 
 Multiplicative_Expression:    Unary_Expression
                          |    Multiplicative_Expression MUL_OP Unary_Expression
                               {
-                                  fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                  fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                  fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                  PopReg(0);
+                                  PopReg(1);
                                   fprintf(f_asm, "    mul $r0, $r1, $r0\n");
-
-                                  fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                  fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                  PushReg(0);
                               }
                          |    Multiplicative_Expression DIV_OP Unary_Expression
                               {
-                                  fprintf(f_asm, "    lwi $r2, [$sp+0]\n");
-                                  fprintf(f_asm, "    lwi $r3, [$sp+4]\n");
-                                  fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                  PopReg(2);
+                                  PopReg(3);
                                   fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
-
-                                  fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                  fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                  PushReg(0);
                               }
                          |    Multiplicative_Expression MOD_OP Unary_Expression
                               {
-                                  fprintf(f_asm, "    lwi $r2, [$sp+0]\n");
-                                  fprintf(f_asm, "    lwi $r3, [$sp+4]\n");
-                                  fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                  PopReg(2);
+                                  PopReg(3);
                                   fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
-
-                                  fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                  fprintf(f_asm, "    swi $r1, [$sp+0]\n");
+                                  PushReg(1);
                               }
                          ;
 
 Unary_Expression:    Postfix_Expression
                 |    MINUS_OP Postfix_Expression
                      {
-                         fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                         fprintf(f_asm, "    addi $sp, $sp, 4\n");
-
+                         PopReg(0);
                          fprintf(f_asm, "    subri $r0, $r0, 0\n");
-
-                         fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                         fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                         PushReg(0);
                      }
                 ;
 
@@ -547,14 +481,13 @@ Primary_Expression:    Var
                                     fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                                     break;
                                 case LOCAL_MODE:
-                                    fprintf(f_asm, "    lwi $r0, [$fp-%d]\n",table[index].offset*4);
+                                    fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                                     break;
                                 /* global */
                             }
 
                             /* Push to stack */
-                            fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                            fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                            PushReg(0);
                        }
                   |    INT_CONSTANT
                        {
@@ -562,8 +495,7 @@ Primary_Expression:    Var
 
                             /* Move num to $r0 and push to stack */
                             fprintf(f_asm, "    movi $r0, %d\n",$1);
-                            fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                            fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                            PushReg(0);
                        }
                   |    DOUBLE_CONSTANT                  { $$ = NULL; }
                   |    CHAR_CONSTANT                    { $$ = NULL; }
@@ -601,191 +533,131 @@ Init_Conditional_Expression:    Init_Logical_Or_Expression
 Init_Logical_Or_Expression:    Init_Logical_And_Expression
                           |    Init_Logical_Or_Expression OR_OP Init_Logical_And_Expression
                                {
-                                   fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                   fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                   fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                   PopReg(0);
+                                   PopReg(1);
                                    fprintf(f_asm, "    or $r0, $r0, $r1\n");
-
-                                   fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                   fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                   PushReg(0);
                                }
                           ;
 Init_Logical_And_Expression:    Init_Not_Expression
                            |    Init_Logical_And_Expression AND_OP Init_Not_Expression
                                 {
-                                    fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                    fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                    fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                    PopReg(0);
+                                    PopReg(1);
                                     fprintf(f_asm, "    and $r0, $r0, $r1\n");
-
-                                    fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                    fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                    PushReg(0);
                                 }
                            ;
 Init_Not_Expression:    Init_Relational_Expression
                    |    NOT_OP Init_Relational_Expression
                         {
-                            fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                            fprintf(f_asm, "    addi $sp, $sp, 4\n");
-
+                            PopReg(0);
                             fprintf(f_asm, "    addi $r0, $r0, 0\n"); /* ??? */
                             fprintf(f_asm, "    slti $r0, $r0, 1\n");
                             fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                            fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                            fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                            PushReg(0);
                         }
                    ;
 Init_Relational_Expression:    Init_Additive_Expression
                           |    Init_Relational_Expression LT_OP Init_Additive_Expression
                                {
-                                   fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                   fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                   fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                   PopReg(0);
+                                   PopReg(1);
                                    fprintf(f_asm, "    slts $r0, $r1, $r0\n");
                                    fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                                   fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                   fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                   PushReg(0);
                                }
                           |    Init_Relational_Expression LE_OP Init_Additive_Expression
                                {
-                                   fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                   fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                   fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                   PopReg(0);
+                                   PopReg(1);
                                    fprintf(f_asm, "    slts $r0, $r0, $r1\n"); /* $r1 > $r0 ? */
                                    fprintf(f_asm, "    xori $r0, $r0, 1\n"); /* if $r0 == 1, $r0 = 0 */
                                    fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                                   fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                   fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                   PushReg(0);
                                }
                           |    Init_Relational_Expression GT_OP Init_Additive_Expression
                                {
-                                   fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                   fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                   fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                   PopReg(0);
+                                   PopReg(1);
                                    fprintf(f_asm, "    slts $r0, $r0, $r1\n");
                                    fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                                   fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                   fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                   PushReg(0);
                                }
                           |    Init_Relational_Expression GE_OP Init_Additive_Expression
                                {
-                                   fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                   fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                   fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                   PopReg(0);
+                                   PopReg(1);
                                    fprintf(f_asm, "    slts $r0, $r1, $r0\n"); /* $r1 < $r0 ? */
                                    fprintf(f_asm, "    xori $r0, $r0, 1\n"); /* if $r0 == 1, $r0 = 0 */
                                    fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                                   fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                   fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                   PushReg(0);
                                }
                           |    Init_Relational_Expression EQUAL_OP Init_Additive_Expression
                                {
-                                   fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                   fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                   fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                   PopReg(0);
+                                   PopReg(1);
                                    fprintf(f_asm, "    xor $r0, $r0, $r1\n"); /* If $r0 == $r1 , then result of xor will be 0 --> < 1 */
                                    fprintf(f_asm, "    slti $r0, $r0, 1\n");
                                    fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                                   fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                   fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                   PushReg(0);
                                }
                           |    Init_Relational_Expression NEQUAL_OP Init_Additive_Expression
                                {
-                                   fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                   fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                   fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                   PopReg(0);
+                                   PopReg(1);
                                    fprintf(f_asm, "    xor $r0, $r0, $r1\n"); /* If $r0 != $r1 , then result of xor will be > 0 */
                                    fprintf(f_asm, "    movi $r1, 0\n");
                                    fprintf(f_asm, "    slt $r0, $r1, $r0\n");
                                    fprintf(f_asm, "    zeb $r0, $r0\n");
-
-                                   fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                   fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                   PushReg(0);
                                }
                           ;
 Init_Additive_Expression:    Init_Multiplicative_Expression
                         |    Init_Additive_Expression PLUS_OP Init_Multiplicative_Expression
                              {
-                                 fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                 fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                 fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                 PopReg(0);
+                                 PopReg(1);
                                  fprintf(f_asm, "    add $r0, $r1, $r0\n");
-
-                                 fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                 fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                 PushReg(0);
                              }
                         |    Init_Additive_Expression MINUS_OP Init_Multiplicative_Expression
                              {
-                                 fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                 fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                 fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                 PopReg(0);
+                                 PopReg(1);
                                  fprintf(f_asm, "    sub $r0, $r1, $r0\n");
-
-                                 fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                 fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                 PushReg(0);
                              }
                         ;
 Init_Multiplicative_Expression:    Init_Unary_Expression
                               |    Init_Multiplicative_Expression MUL_OP Init_Unary_Expression
                                    {
-                                       fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                                       fprintf(f_asm, "    lwi $r1, [$sp+4]\n");
-                                       fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                       PopReg(0);
+                                       PopReg(1);
                                        fprintf(f_asm, "    mul $r0, $r1, $r0\n");
-
-                                       fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                       fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                       PushReg(0);
                                    }
                               |    Init_Multiplicative_Expression DIV_OP Init_Unary_Expression
                                    {
-                                       fprintf(f_asm, "    lwi $r2, [$sp+0]\n");
-                                       fprintf(f_asm, "    lwi $r3, [$sp+4]\n");
-                                       fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                       PopReg(2);
+                                       PopReg(3);
                                        fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
-
-                                       fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                       fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                       PushReg(0);
                                    }
                               |    Init_Multiplicative_Expression MOD_OP Init_Unary_Expression
                                    {
-                                       fprintf(f_asm, "    lwi $r2, [$sp+0]\n");
-                                       fprintf(f_asm, "    lwi $r3, [$sp+4]\n");
-                                       fprintf(f_asm, "    addi $sp, $sp, 8\n");
-
+                                       PopReg(2);
+                                       PopReg(3);
                                        fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
-
-                                       fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                       fprintf(f_asm, "    swi $r1, [$sp+0]\n");
+                                       PushReg(1);
                                    }
                               ;
 Init_Unary_Expression:    Init_Postfix_Expression
                      |    MINUS_OP Init_Postfix_Expression
                           {
-                              fprintf(f_asm, "    lwi $r0, [$sp+0]\n");
-                              fprintf(f_asm, "    addi $sp, $sp, 4\n");
-
+                              PopReg(0);
                               fprintf(f_asm, "    subri $r0, $r0, 0\n");
-
-                              fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                              fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                              PushReg(0);
                           }
                      ;
 Init_Postfix_Expression:    Init_Primary_Expression
@@ -803,14 +675,13 @@ Init_Primary_Expression:    Var
                                          fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                                          break;
                                      case LOCAL_MODE:
-                                         fprintf(f_asm, "    lwi $r0, [$fp-%d]\n",table[index].offset*4);
+                                         fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                                          break;
                                      /* global */
                                  }
 
                                  /* Push to stack */
-                                 fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                 fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                 PushReg(0);
                             }
                        |    INT_CONSTANT
                             {
@@ -818,8 +689,7 @@ Init_Primary_Expression:    Var
 
                                 /* Move num to $r0 and push to stack */
                                 fprintf(f_asm, "    movi $r0, %d\n",$1);
-                                fprintf(f_asm, "    addi $sp, $sp, -4\n");
-                                fprintf(f_asm, "    swi $r0, [$sp+0]\n");
+                                PushReg(0);
                             }
                        |    DOUBLE_CONSTANT             { $$ = NULL; }
                        |    CHAR_CONSTANT               { $$ = NULL; }

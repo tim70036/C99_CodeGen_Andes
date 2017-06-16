@@ -149,7 +149,7 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
                 fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                 break;
             case LOCAL_MODE:
-                fprintf(f_asm, "    lwi $r0, [$fp-%d]\n",table[index].offset*4);
+                fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                 break;
             /* global */
         }
@@ -181,7 +181,7 @@ TOKEN_OFF   #{SPACE}?"pragma"{SPACE}"token"{SPACE}"off"{SPACE}?\n
                 fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                 break;
             case LOCAL_MODE:
-                fprintf(f_asm, "    lwi $r0, [$fp-%d]\n",table[index].offset*4);
+                fprintf(f_asm, "    lwi $r0, [$sp+%d]\n",table[index].offset*4);
                 break;
             /* global */
         }

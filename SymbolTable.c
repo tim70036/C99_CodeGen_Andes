@@ -18,6 +18,18 @@ int cur_counter = 0;
 int cur_scope   = 1;
 char *copys();
 
+int stackOffset = 4 * 5 - 4;
+void PushReg(int reg)
+{
+    stackOffset += 4;
+    fprintf(f_asm, "    swi $r%d, [$sp+%d]\n", reg, stackOffset);
+}
+
+void PopReg(int reg)
+{
+    fprintf(f_asm, "    lwi $r%d, [$sp+%d]\n", reg, stackOffset);
+    stackOffset -= 4;
+}
 
 
 /*
@@ -138,14 +150,15 @@ char *functor;
   index = look_up_symbol(functor);
   index1 = index + table[index].total_args;
   total_locals= cur_counter -index1 -1;
+
   if (total_locals <0)
      err("Error in number of local variables");
   table[index].total_locals=total_locals;
   for (j=total_locals, i=cur_counter-1;j>0; i--,j--)
-        {
-          table[i].scope = cur_scope;
-          table[i].mode  = LOCAL_MODE;
-        }
+    {
+      table[i].scope = cur_scope;
+      table[i].mode  = LOCAL_MODE;
+    }
 
 }
 
