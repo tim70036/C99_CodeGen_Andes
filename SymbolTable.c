@@ -18,7 +18,7 @@ int cur_counter = 0;
 int cur_scope   = 1;
 char *copys();
 
-int stackOffset = 4 * 5 - 4;
+int stackOffset = 4 * 10 - 4;
 void PushReg(int reg)
 {
     stackOffset += 4;

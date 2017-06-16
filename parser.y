@@ -279,7 +279,7 @@ Iteration_Statement:    WHILE
                         {
                             /* Pop expression, if false go to end */
                             PopReg(0);
-                            fprintf(f_asm, "    beqz $r0, L%d\n", LabelNum+1);
+                            fprintf(f_asm, "    beqz $r0, .L%d\n", LabelNum+1);
                         }
                         Compound_Statement
                         {
@@ -299,7 +299,7 @@ Iteration_Statement:    WHILE
                         {
                             /* Pop expression, if true go back to compound statement */
                             PopReg(0);
-                            fprintf(f_asm, "    bnez $r0, L%d\n", LabelNum);
+                            fprintf(f_asm, "    bnez $r0, .L%d\n", LabelNum);
                             LabelNum++;
                         }
                    |    FOR '(' Expression_Statement Expression_Statement ')' Compound_Statement
