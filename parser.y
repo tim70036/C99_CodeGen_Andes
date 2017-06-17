@@ -459,7 +459,7 @@ Additive_Expression:    Multiplicative_Expression       { $$ = $1; }
                    |    Additive_Expression PLUS_OP Multiplicative_Expression
                         {
                             /* Check type */
-                            if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Additive Expression Type Error");
+                            if($1 != $3 || ($1 != Int && $1 != Double))  yyerror("Additive Expression Type Error");
                             $$ = $1;
 
                             PopReg(0);
@@ -470,7 +470,7 @@ Additive_Expression:    Multiplicative_Expression       { $$ = $1; }
                    |    Additive_Expression MINUS_OP Multiplicative_Expression
                         {
                             /* Check type */
-                            if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Additive Expression Type Error");
+                            if($1 != $3 || ($1 != Int && $1 != Double))  yyerror("Additive Expression Type Error");
                             $$ = $1;
 
                             PopReg(0);
@@ -484,7 +484,7 @@ Multiplicative_Expression:    Unary_Expression                  { $$ = $1; }
                          |    Multiplicative_Expression MUL_OP Unary_Expression
                               {
                                   /* Check type */
-                                  if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                  if($1 != $3 || ($1 != Int && $1 != Double))  yyerror("Multiplicative Expression Type Error");
                                   $$ = $1;
 
                                   PopReg(0);
@@ -495,7 +495,7 @@ Multiplicative_Expression:    Unary_Expression                  { $$ = $1; }
                          |    Multiplicative_Expression DIV_OP Unary_Expression
                               {
                                   /* Check type */
-                                  if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                  if($1 != $3 || ($1 != Int && $1 != Double))  yyerror("Multiplicative Expression Type Error");
                                   $$ = $1;
 
                                   PopReg(2);
@@ -506,7 +506,7 @@ Multiplicative_Expression:    Unary_Expression                  { $$ = $1; }
                          |    Multiplicative_Expression MOD_OP Unary_Expression
                               {
                                   /* Check type */
-                                  if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                  if($1 != $3 || ($1 != Int && $1 != Double))  yyerror("Multiplicative Expression Type Error");
                                   $$ = $1;
 
                                   PopReg(2);
@@ -556,8 +556,6 @@ Primary_Expression:    Var
                        }
                   |    INT_CONSTANT
                        {
-                            $$ = NULL;
-
                             /* Move num to $r0 and push to stack */
                             fprintf(f_asm, "    movi $r0, %d\n",$1);
                             PushReg(0);
@@ -697,7 +695,7 @@ Init_Additive_Expression:    Init_Multiplicative_Expression     { $$ = $1; }
                         |    Init_Additive_Expression PLUS_OP Init_Multiplicative_Expression
                              {
                                  /* Check type */
-                                 if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Additive Expression Type Error");
+                                 if($1 != $3 || ($1 != Int && $1 != Double))  yyerror("Additive Expression Type Error");
                                  $$ = $1;
 
                                  PopReg(0);
@@ -708,7 +706,7 @@ Init_Additive_Expression:    Init_Multiplicative_Expression     { $$ = $1; }
                         |    Init_Additive_Expression MINUS_OP Init_Multiplicative_Expression
                              {
                                  /* Check type */
-                                 if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Additive Expression Type Error");
+                                 if($1 != $3 || ($1 != Int && $1 != Double))  yyerror("Additive Expression Type Error");
                                  $$ = $1;
 
                                  PopReg(0);
@@ -721,7 +719,7 @@ Init_Multiplicative_Expression:    Init_Unary_Expression            { $$ = $1; }
                               |    Init_Multiplicative_Expression MUL_OP Init_Unary_Expression
                                    {
                                        /* Check type */
-                                       if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                       if($1 != $3 || ($1 != Int && $1 != Double))  yyerror("Multiplicative Expression Type Error");
                                        $$ = $1;
 
                                        PopReg(0);
@@ -732,7 +730,7 @@ Init_Multiplicative_Expression:    Init_Unary_Expression            { $$ = $1; }
                               |    Init_Multiplicative_Expression DIV_OP Init_Unary_Expression
                                    {
                                        /* Check type */
-                                       if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                       if($1 != $3 || ($1 != Int && $1 != Double))  yyerror("Multiplicative Expression Type Error");
                                        $$ = $1;
 
                                        PopReg(2);
@@ -743,7 +741,7 @@ Init_Multiplicative_Expression:    Init_Unary_Expression            { $$ = $1; }
                               |    Init_Multiplicative_Expression MOD_OP Init_Unary_Expression
                                    {
                                        /* Check type */
-                                       if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                       if($1 != $3 || ($1 != Int && $1 != Double))  yyerror("Multiplicative Expression Type Error");
                                        $$ = $1;
 
                                        PopReg(2);
@@ -790,8 +788,6 @@ Init_Primary_Expression:    Var
                             }
                        |    INT_CONSTANT
                             {
-                                $$ = NULL;
-
                                 /* Move num to $r0 and push to stack */
                                 fprintf(f_asm, "    movi $r0, %d\n",$1);
                                 PushReg(0);
