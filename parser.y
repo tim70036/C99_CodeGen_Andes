@@ -3,6 +3,13 @@
     #include <stdlib.h>
     #include "SymbolTable.h"
 
+    #define Int 87
+    #define Double 8787
+    #define Char 9487
+    #define Bool 5487
+    #define Void 6666
+    #define String 7878
+
     int FunctionNum = 0;
     int LocalOffset = 0;
     int LabelNum = 2;
@@ -30,7 +37,11 @@
 
 %token <charVal> ';' ':' '?' '=' '(' ')' '[' ']' '{' '}' '&'
 %type <ident> Array Function_Declarator Function_Declaration Declaration Var Primary_Expression
-%type <ident> Init_Primary_Expression
+%type <ident> Init_Primary_Expression Normal_Declarator_List Normal_Declarator
+%type <token> Non_Void_Type_Specifier
+%type <token>  Expression Init_Expression Postfix_Expression Init_Postfix_Expression
+%type <token> Unary_Expression Init_Unary_Expression Multiplicative_Expression Init_Multiplicative_Expression
+%type <token> Additive_Expression Init_Additive_Expression
 
 %union {
          int       token ;
@@ -68,9 +79,27 @@ Function_Definition:    Function_Declarator '{'
                    ;
 
 Function_Declarator:    Non_Void_Type_Specifier ID       { install_symbol($2); }
-                        '(' Parameter_List ')'           { $$ = $2; }
+                        '(' Parameter_List ')'
+                        {
+                            /* Setting type of the func */
+                            int index = look_up_symbol($2);
+
+                            if($1 == Int)            table[index].type = Int;
+                            else if($1 == Double)    table[index].type = Double;
+                            else if($1 == Char)      table[index].type = Char;
+                            else if($1 == Bool)      table[index].type = Bool;
+
+                            $$ = $2;
+                        }
                    |    VOID ID                          { install_symbol($2); }
-                        '(' Parameter_List ')'           { $$ = $2; }
+                        '(' Parameter_List ')'
+                        {
+                            /* Setting type of the func */
+                            int index = look_up_symbol($2);
+                            table[index].type = Void;
+
+                            $$ = $2;
+                        }
                    ;
 
 Declaration:    Function_Declaration    { $$ = $1; }
@@ -111,17 +140,27 @@ Const_Declarator:    ID '=' INT_CONSTANT
                 ;
 
 Normal_Declaration:    Non_Void_Type_Specifier Normal_Declarator_List ';'
+                       {
+                           /* Setting type of the var */
+                           int index = look_up_symbol($2);
+
+                           if($1 == Int)            table[index].type = Int;
+                           else if($1 == Double)    table[index].type = Double;
+                           else if($1 == Char)      table[index].type = Char;
+                           else if($1 == Bool)      table[index].type = Bool;
+
+                       }
                   ;
 
-Normal_Declarator_List:    Normal_Declarator
-                      |    Normal_Declarator_List ',' Normal_Declarator
+Normal_Declarator_List:    Normal_Declarator                                { $$ = $1; }
+                      |    Normal_Declarator_List ',' Normal_Declarator     { $$ = $1; }
                       ;
 
-Normal_Declarator:    ID                        { install_symbol($1); }
-                 |    Array                     { install_symbol($1); }
+Normal_Declarator:    ID                        { install_symbol($1);  $$ = $1; }
+                 |    Array                     { install_symbol($1); $$ = $1; }
                  |    ID '=' Init_Expression
                       {
-                          install_symbol($1);
+                          install_symbol($1);  $$ = $1;
                           int index = look_up_symbol($1);
 
                           /* Setting, use set_local_vars will be too late */
@@ -133,6 +172,7 @@ Normal_Declarator:    ID                        { install_symbol($1); }
 
                           /* Store it to var */
                           fprintf(f_asm, "    swi $r0, [$sp+%d]\n",table[index].offset*4);
+
                       }
                  |    Array '=' Array_Content   { install_symbol($1); }
                  ;
@@ -166,10 +206,10 @@ Var:    ID                      { $$ = $1; }
    |    ID Array_Expression     { $$ = $1; }
    ;
 
-Non_Void_Type_Specifier:    INT
-                       |    CHAR
-                       |    BOOL
-                       |    DOUBLE
+Non_Void_Type_Specifier:    INT     { $$ = Int; }
+                       |    CHAR    { $$ = Char; }
+                       |    BOOL    { $$ = Bool; }
+                       |    DOUBLE  { $$ = Double; }
                        ;
 
 
@@ -415,9 +455,13 @@ Relational_Expression:    Additive_Expression
                           }
                      ;
 
-Additive_Expression:    Multiplicative_Expression
+Additive_Expression:    Multiplicative_Expression       { $$ = $1; }
                    |    Additive_Expression PLUS_OP Multiplicative_Expression
                         {
+                            /* Check type */
+                            if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Additive Expression Type Error");
+                            $$ = $1;
+
                             PopReg(0);
                             PopReg(1);
                             fprintf(f_asm, "    add $r0, $r1, $r0\n");
@@ -425,6 +469,10 @@ Additive_Expression:    Multiplicative_Expression
                         }
                    |    Additive_Expression MINUS_OP Multiplicative_Expression
                         {
+                            /* Check type */
+                            if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Additive Expression Type Error");
+                            $$ = $1;
+
                             PopReg(0);
                             PopReg(1);
                             fprintf(f_asm, "    sub $r0, $r1, $r0\n");
@@ -432,9 +480,13 @@ Additive_Expression:    Multiplicative_Expression
                         }
                    ;
 
-Multiplicative_Expression:    Unary_Expression
+Multiplicative_Expression:    Unary_Expression                  { $$ = $1; }
                          |    Multiplicative_Expression MUL_OP Unary_Expression
                               {
+                                  /* Check type */
+                                  if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                  $$ = $1;
+
                                   PopReg(0);
                                   PopReg(1);
                                   fprintf(f_asm, "    mul $r0, $r1, $r0\n");
@@ -442,6 +494,10 @@ Multiplicative_Expression:    Unary_Expression
                               }
                          |    Multiplicative_Expression DIV_OP Unary_Expression
                               {
+                                  /* Check type */
+                                  if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                  $$ = $1;
+
                                   PopReg(2);
                                   PopReg(3);
                                   fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
@@ -449,6 +505,10 @@ Multiplicative_Expression:    Unary_Expression
                               }
                          |    Multiplicative_Expression MOD_OP Unary_Expression
                               {
+                                  /* Check type */
+                                  if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                  $$ = $1;
+
                                   PopReg(2);
                                   PopReg(3);
                                   fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
@@ -456,18 +516,20 @@ Multiplicative_Expression:    Unary_Expression
                               }
                          ;
 
-Unary_Expression:    Postfix_Expression
+Unary_Expression:    Postfix_Expression                 { $$ = $1; }
                 |    MINUS_OP Postfix_Expression
                      {
                          PopReg(0);
                          fprintf(f_asm, "    subri $r0, $r0, 0\n");
                          PushReg(0);
+
+                         $$ = $2;
                      }
                 ;
 
-Postfix_Expression:    Primary_Expression
-                  |    Primary_Expression PLUSPLUS_OP
-                  |    Primary_Expression MINUSMINUS_OP
+Postfix_Expression:    Primary_Expression                   { $$ = $1; }
+                  |    Primary_Expression PLUSPLUS_OP       { $$ = $1; }
+                  |    Primary_Expression MINUSMINUS_OP     { $$ = $1; }
                   ;
 
 Primary_Expression:    Var
@@ -488,6 +550,9 @@ Primary_Expression:    Var
 
                             /* Push to stack */
                             PushReg(0);
+
+                            /* Return type */
+                            $$ = table[index].type;
                        }
                   |    INT_CONSTANT
                        {
@@ -496,15 +561,30 @@ Primary_Expression:    Var
                             /* Move num to $r0 and push to stack */
                             fprintf(f_asm, "    movi $r0, %d\n",$1);
                             PushReg(0);
+
+                            /* Return type */
+                            $$ = Int;
                        }
-                  |    DOUBLE_CONSTANT                  { $$ = NULL; }
-                  |    CHAR_CONSTANT                    { $$ = NULL; }
-                  |    STRING_CONSTANT                  { $$ = NULL; }
-                  |    TRUE                             { $$ = NULL; }
-                  |    FALSE                            { $$ = NULL; }
-                  |    '(' Expression ')'
+                  |    DOUBLE_CONSTANT                  { $$ = Double; }
+                  |    CHAR_CONSTANT                    { $$ = Char; }
+                  |    STRING_CONSTANT                  { $$ = String; }
+                  |    TRUE                             { $$ = Bool; }
+                  |    FALSE                            { $$ = Bool; }
+                  |    '(' Expression ')'               { $$ = $2; }
                   |    ID '(' ')'
+                       {
+                           int index = look_up_symbol($1);
+
+                           /* Return type */
+                           $$ = table[index].type;
+                       }
                   |    ID '(' Expression_List ')'
+                       {
+                           int index = look_up_symbol($1);
+
+                           /* Return type */
+                           $$ = table[index].type;
+                       }
                   ;
 
 Expression_List:    Expression
@@ -613,9 +693,13 @@ Init_Relational_Expression:    Init_Additive_Expression
                                    PushReg(0);
                                }
                           ;
-Init_Additive_Expression:    Init_Multiplicative_Expression
+Init_Additive_Expression:    Init_Multiplicative_Expression     { $$ = $1; }
                         |    Init_Additive_Expression PLUS_OP Init_Multiplicative_Expression
                              {
+                                 /* Check type */
+                                 if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Additive Expression Type Error");
+                                 $$ = $1;
+
                                  PopReg(0);
                                  PopReg(1);
                                  fprintf(f_asm, "    add $r0, $r1, $r0\n");
@@ -623,15 +707,23 @@ Init_Additive_Expression:    Init_Multiplicative_Expression
                              }
                         |    Init_Additive_Expression MINUS_OP Init_Multiplicative_Expression
                              {
+                                 /* Check type */
+                                 if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Additive Expression Type Error");
+                                 $$ = $1;
+
                                  PopReg(0);
                                  PopReg(1);
                                  fprintf(f_asm, "    sub $r0, $r1, $r0\n");
                                  PushReg(0);
                              }
                         ;
-Init_Multiplicative_Expression:    Init_Unary_Expression
+Init_Multiplicative_Expression:    Init_Unary_Expression            { $$ = $1; }
                               |    Init_Multiplicative_Expression MUL_OP Init_Unary_Expression
                                    {
+                                       /* Check type */
+                                       if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                       $$ = $1;
+
                                        PopReg(0);
                                        PopReg(1);
                                        fprintf(f_asm, "    mul $r0, $r1, $r0\n");
@@ -639,6 +731,10 @@ Init_Multiplicative_Expression:    Init_Unary_Expression
                                    }
                               |    Init_Multiplicative_Expression DIV_OP Init_Unary_Expression
                                    {
+                                       /* Check type */
+                                       if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                       $$ = $1;
+
                                        PopReg(2);
                                        PopReg(3);
                                        fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
@@ -646,23 +742,29 @@ Init_Multiplicative_Expression:    Init_Unary_Expression
                                    }
                               |    Init_Multiplicative_Expression MOD_OP Init_Unary_Expression
                                    {
+                                       /* Check type */
+                                       if($1 != $3 || $1 != Int || $1 != Double)  yyerror("Multiplicative Expression Type Error");
+                                       $$ = $1;
+
                                        PopReg(2);
                                        PopReg(3);
                                        fprintf(f_asm, "    divsr $r0, $r1, $r3, $r2\n");
                                        PushReg(1);
                                    }
                               ;
-Init_Unary_Expression:    Init_Postfix_Expression
+Init_Unary_Expression:    Init_Postfix_Expression               { $$ = $1; }
                      |    MINUS_OP Init_Postfix_Expression
                           {
                               PopReg(0);
                               fprintf(f_asm, "    subri $r0, $r0, 0\n");
                               PushReg(0);
+
+                              $$ = $2;
                           }
                      ;
-Init_Postfix_Expression:    Init_Primary_Expression
-                       |    Init_Primary_Expression PLUSPLUS_OP
-                       |    Init_Primary_Expression MINUSMINUS_OP
+Init_Postfix_Expression:    Init_Primary_Expression                     { $$ = $1; }
+                       |    Init_Primary_Expression PLUSPLUS_OP         { $$ = $1; }
+                       |    Init_Primary_Expression MINUSMINUS_OP       { $$ = $1; }
                        ;
 Init_Primary_Expression:    Var
                             {
@@ -682,6 +784,9 @@ Init_Primary_Expression:    Var
 
                                  /* Push to stack */
                                  PushReg(0);
+
+                                 /* Return type */
+                                 $$ = table[index].type;
                             }
                        |    INT_CONSTANT
                             {
@@ -690,13 +795,16 @@ Init_Primary_Expression:    Var
                                 /* Move num to $r0 and push to stack */
                                 fprintf(f_asm, "    movi $r0, %d\n",$1);
                                 PushReg(0);
+
+                                /* Return type */
+                                $$ = Int;
                             }
-                       |    DOUBLE_CONSTANT             { $$ = NULL; }
-                       |    CHAR_CONSTANT               { $$ = NULL; }
-                       |    STRING_CONSTANT             { $$ = NULL; }
-                       |    TRUE                        { $$ = NULL; }
-                       |    FALSE                       { $$ = NULL; }
-                       |    '(' Init_Expression ')'
+                       |    DOUBLE_CONSTANT             { $$ = Double; }
+                       |    CHAR_CONSTANT               { $$ = Char; }
+                       |    STRING_CONSTANT             { $$ = String; }
+                       |    TRUE                        { $$ = Bool; }
+                       |    FALSE                       { $$ = Bool; }
+                       |    '(' Init_Expression ')'     { $$ = $2; }
                        ;
 
 %%
@@ -708,10 +816,12 @@ extern char *yytext;
 int yyerror( char *msg ) {
 	fprintf( stderr, "*** Error at line %d: %s\n", numL, buf );
 	fprintf( stderr, "\n" );
+    fprintf( stderr, "Error message: %s\n", msg );
 	fprintf( stderr, "Unmatched token: %s\n", yytext );
 	fprintf( stderr, "*** syntax error\n");
 	exit(-1);
 }
+
 
 int main(void)
 {

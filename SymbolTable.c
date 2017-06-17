@@ -121,7 +121,6 @@ char *s;
    index = look_up_symbol(s);
    if (index<0) err("Error in function header");
    else {
-      table[index].type = T_FUNCTION;
       total_args = cur_counter -index -1;
       table[index].total_args=total_args;
       for (j=total_args, i=cur_counter-1;i>index; i--,j--)
@@ -293,5 +292,5 @@ void printTable()
     int i;
     puts("\n-------------------------------------");
     for(i=0 ; i<cur_counter ; i++)
-        printf("% -10s    scope:% -5d     offset:% -5d    total_args:% -5d    total_locals:% -5d\n",table[i].name, table[i].scope, table[i].offset, table[i].total_args, table[i].total_locals);
+        printf("% -10s    scope:% -5d     offset:% -5d    type:%-5d    total_args:% -5d    total_locals:% -5d\n",table[i].name, table[i].scope, table[i].offset, table[i].type, table[i].total_args, table[i].total_locals);
 }
